@@ -73,10 +73,10 @@ private class SuspendFunctionGun<TSubject : Any, TContext : Any>(
 
     // this is impossible to inline because of property name clash
     // between PipelineContext.context and Continuation.context
-    private val continuation: Continuation<Unit> = object : Continuation<Unit>, CoroutineStackFrame {
-        override val callerFrame: CoroutineStackFrame? get() = peekContinuation() as? CoroutineStackFrame
-
-        override fun getStackTraceElement(): StackTraceElement? = null
+    private val continuation: Continuation<Unit> = object : Continuation<Unit> { //}, CoroutineStackFrame {
+//        override val callerFrame: CoroutineStackFrame? get() = peekContinuation() as? CoroutineStackFrame
+//
+//        override fun getStackTraceElement(): StackTraceElement? = null
 
         private fun peekContinuation(): Continuation<*>? {
             if (lastPeekedIndex < 0) return null

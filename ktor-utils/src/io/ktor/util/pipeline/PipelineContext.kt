@@ -73,27 +73,32 @@ private class SuspendFunctionGun<TSubject : Any, TContext : Any>(
 
     // this is impossible to inline because of property name clash
     // between PipelineContext.context and Continuation.context
-    private val continuation: Continuation<Unit> = object : Continuation<Unit> { //}, CoroutineStackFrame {
-//        override val callerFrame: CoroutineStackFrame? get() = peekContinuation() as? CoroutineStackFrame
-//
-//        override fun getStackTraceElement(): StackTraceElement? = null
+    private val continuation: Continuation<Unit> = object : Continuation<Unit> , CoroutineStackFrame {
+        override val callerFrame: CoroutineStackFrame? get() = peekContinuation() as? CoroutineStackFrame
+
+        override fun getStackTraceElement(): StackTraceElement? = null
 
         private fun peekContinuation(): Continuation<*>? {
-            if (lastPeekedIndex < 0) return null
-            val rootContinuation = rootContinuation
+            try {
+                if (lastPeekedIndex < 0) return null
+                val rootContinuation = rootContinuation
 
-            @Suppress("UNCHECKED_CAST")
-            when (rootContinuation) {
-                null -> return null
-                is Continuation<*> -> {
-                    --lastPeekedIndex
-                    return rootContinuation
+                @Suppress("UNCHECKED_CAST")
+                when (rootContinuation) {
+                    null -> return null
+                    is Continuation<*> -> {
+                        --lastPeekedIndex
+                        return rootContinuation
+                    }
+                    is ArrayList<*> -> {
+                        if (rootContinuation.isEmpty()) return null
+                        return rootContinuation[lastPeekedIndex--] as Continuation<*>
+                    }
+                    else -> return null
                 }
-                is ArrayList<*> -> {
-                    if (rootContinuation.isEmpty()) return null
-                    return rootContinuation[lastPeekedIndex--] as Continuation<*>
-                }
-                else -> return null
+            } catch (e: Throwable) {
+                println("AAAAAAAAAAAAAAAAa : $e")
+                return null
             }
         }
 
@@ -197,10 +202,12 @@ private class SuspendFunctionGun<TSubject : Any, TContext : Any>(
             null -> throw IllegalStateException("No more continuations to resume")
             is Continuation<*> -> {
                 this.rootContinuation = null
+                lastPeekedIndex = -1
                 rootContinuation
             }
             is ArrayList<*> -> {
                 if (rootContinuation.isEmpty()) throw IllegalStateException("No more continuations to resume")
+                --lastPeekedIndex
                 rootContinuation.removeAt(rootContinuation.lastIndex)
             }
             else -> unexpectedRootContinuationValue(rootContinuation)
@@ -216,7 +223,7 @@ private class SuspendFunctionGun<TSubject : Any, TContext : Any>(
         when (rootContinuation) {
             null -> throw IllegalStateException("No more continuations to resume")
             is Continuation<*> -> {
-                lastPeekedIndex = 0
+                lastPeekedIndex = -1
                 this.rootContinuation = null
             }
             is ArrayList<*> -> {
@@ -248,6 +255,7 @@ private class SuspendFunctionGun<TSubject : Any, TContext : Any>(
                 rootContinuation as ArrayList<Continuation<TSubject>>
                 rootContinuation.add(continuation)
                 lastPeekedIndex = rootContinuation.lastIndex
+                println(":( $lastPeekedIndex")
             }
             else -> unexpectedRootContinuationValue(rootContinuation)
         }
@@ -270,4 +278,3 @@ private inline fun <R, A>
     val function = (this as Function3<R, A, Continuation<Unit>, Any?>)
     return function.invoke(receiver, arg, continuation)
 }
-
